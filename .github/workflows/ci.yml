@@ -61,7 +61,7 @@ jobs:
               "$DEPLOY_USER@$DEPLOY_HOST" '
             set -e
             cd ~/"Downloads/git gatherings/Inventory_Management/inventory_manage"
-            git pull --ff-only
+            git pull --ff-only origin master
             .venv/bin/pip install -r requirements.txt
             POSTGRES_HOST=localhost .venv/bin/python manage.py migrate --noinput
           '
