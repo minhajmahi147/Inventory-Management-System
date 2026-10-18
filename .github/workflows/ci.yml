@@ -1,0 +1,67 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: inventory_manage
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: mahi
+      POSTGRES_PASSWORD: mahi123
+      POSTGRES_DB: inventory_manage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: inventory_manage/requirements.txt
+
+      - name: Install PostGIS and GDAL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin postgis
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "CREATE USER $POSTGRES_USER WITH SUPERUSER PASSWORD '$POSTGRES_PASSWORD';"
+          sudo -u postgres createdb -O $POSTGRES_USER $POSTGRES_DB
+
+      - run: pip install -r requirements.txt
+      - run: python manage.py makemigrations --check --dry-run
+      - run: coverage run manage.py test && coverage report
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install cloudflared
+        run: |
+          curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          sudo install cloudflared /usr/local/bin/
+
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ProxyCommand="cloudflared access ssh --hostname %h" \
+              "$DEPLOY_USER@$DEPLOY_HOST" '
+            set -e
+            cd ~/"Downloads/git gatherings/Inventory_Management/inventory_manage"
+            git pull --ff-only
+            .venv/bin/pip install -r requirements.txt
+            POSTGRES_HOST=localhost .venv/bin/python manage.py migrate --noinput
+          '
