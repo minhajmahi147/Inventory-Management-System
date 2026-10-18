@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-wc)+04finhrz1_w4-c6e+q)2l5zf@5e(tqum0kn6gobd02qv_('
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-wc)+04finhrz1_w4-c6e+q)2l5zf@5e(tqum0kn6gobd02qv_(')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+CSRF_TRUSTED_ORIGINS = ['https://*.trycloudflare.com']
 
 
 # Application definition
@@ -85,11 +87,11 @@ WSGI_APPLICATION = 'inventory.wsgi.application'
 DATABASES = {
     'default': {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        'NAME': 'inventory_manage',         # The name of the database you created
-        'USER': 'mahi',             # The username you defined
-        'PASSWORD': 'mahi123',     # The password you defined
-        'HOST': 'db',                 # Use the container name (db) as the hostname
-        'PORT': '5432',               # The default PostgreSQL port
+        'NAME': os.environ.get('POSTGRES_DB', 'inventory_manage'),
+        'USER': os.environ.get('POSTGRES_USER', 'mahi'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'mahi123'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
